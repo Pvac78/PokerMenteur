@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Casino Gemini - Lobby</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root { --gold: #d4af37; }
+        body { 
+            margin:0; font-family:'Segoe UI',sans-serif; color:white;
+            background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('https://images.unsplash.com/photo-1596838132731-dd964552283a?q=80&w=2070');
+            background-size:cover; height:100vh; display:flex; align-items:center; justify-content:center;
+        }
+        .card { background:rgba(20,20,20,0.95); padding:40px; border-radius:20px; border:2px solid var(--gold); width:400px; text-align:center; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        input { width:90%; padding:12px; margin:10px 0; background:#000; border:1px solid #444; color:white; border-radius:5px; }
+        button { background:var(--gold); color:black; border:none; padding:12px 20px; font-weight:bold; cursor:pointer; width:100%; border-radius:5px; margin-top:10px; }
+        .room { background:rgba(255,255,255,0.1); padding:10px; margin:5px 0; display:flex; justify-content:space-between; align-items:center; border-radius:5px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1 style="color:var(--gold)">CASINO GEMINI</h1>
+        <input type="text" id="pName" placeholder="Votre Pseudo">
+        <div id="room-list" style="margin:20px 0; min-height:50px; border-top:1px solid #333; padding-top:10px;"></div>
+        <button onclick="createRoom()">CRÉER UNE TABLE</button>
+    </div>
+    <script>
+        const socket = io();
+        socket.on('listRooms', (rooms) => {
+            const list = document.getElementById('room-list');
+            list.innerHTML = rooms.length ? "" : "Aucune table active";
+            rooms.forEach(r => {
+                list.innerHTML += `<div class="room"><span>${r.name}</span><button onclick="joinRoom('${r.id}')" style="width:auto; margin:0; padding:5px 10px;">REJOINDRE</button></div>`;
+            });
+        });
+        function createRoom() {
+            const p = document.getElementById('pName').value || "Joueur";
+            const t = prompt("Nom de la table :");
+            if(t) { sessionStorage.setItem('p_n', p); socket.emit('createRoom', { tableName: t, playerName: p }); }
+        }
+        socket.on('roomCreated', (id) => joinRoom(id));
+        function joinRoom(id) {
+            const p = document.getElementById('pName').value || sessionStorage.getItem('p_n') || "Joueur";
+            sessionStorage.setItem('p_n', p); sessionStorage.setItem('p_r', id);
+            window.location.href = 'game.html';
+        }
+    </script>
+</body>
+</html>
