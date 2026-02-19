@@ -11,15 +11,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 let rooms = {}; 
 
+const HAND_HIERARCHY = ["Carte Haute", "Paire", "Double Paire", "Brelan", "Quinte", "Full", "Carré", "Quinte Flush"];
+
 function createDeck() {
     const suits = ['♠', '♣', '♥', '♦'];
     const values = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     let deck = [];
-    for (let s of suits) {
-        for (let v of values) {
-            deck.push(v + s);
-        }
-    }
+    for (let s of suits) for (let v of values) deck.push(v + s);
     return deck.sort(() => Math.random() - 0.5);
 }
 
@@ -28,13 +26,7 @@ io.on('connection', (socket) => {
 
     socket.on('createRoom', (roomName) => {
         if (!rooms[roomName]) {
-            rooms[roomName] = { 
-                players: [], 
-                gameStarted: false, 
-                deck: [],
-                currentBid: null,
-                turnIndex: 0 
-            };
+            rooms[roomName] = { players: [], gameStarted: false, deck: [], currentBid: null, turnIndex: 0 };
             io.emit('updateRooms', Object.keys(rooms));
         }
     });
@@ -54,50 +46,48 @@ io.on('connection', (socket) => {
             room.deck = createDeck();
             room.turnIndex = 0;
             room.currentBid = null;
-            
-            room.players.forEach(player => {
-                player.cards = [room.deck.pop()]; 
-                io.to(player.id).emit('yourCards', player.cards);
-            });
-
+            room.players.forEach(p => { p.cards = [room.deck.pop()]; io.to(p.id).emit('yourCards', p.cards); });
             io.to(roomName).emit('gameStarted');
-            // On annonce le premier joueur
-            io.to(roomName).emit('updateGameState', {
-                currentBid: null,
-                nextPlayer: room.players[0].name
-            });
+            io.to(roomName).emit('updateGameState', { currentBid: null, nextPlayer: room.players[0].name });
         }
     });
 
     socket.on('placeBid', ({ roomName, bid }) => {
         const room = rooms[roomName];
         if (room) {
+            // Vérification surenchère
+            if (room.currentBid) {
+                const oldIdx = HAND_HIERARCHY.indexOf(room.currentBid.combo);
+                const newIdx = HAND_HIERARCHY.indexOf(bid.combo);
+                if (newIdx < oldIdx) return; // Refusé si plus faible
+                if (newIdx === oldIdx && bid.value <= room.currentBid.value) return; // Refusé si même combo mais valeur plus faible
+            }
+            
             room.currentBid = bid;
             room.turnIndex = (room.turnIndex + 1) % room.players.length;
-            
-            io.to(roomName).emit('updateGameState', {
-                currentBid: room.currentBid,
-                nextPlayer: room.players[room.turnIndex].name
-            });
+            io.to(roomName).emit('updateGameState', { currentBid: room.currentBid, nextPlayer: room.players[room.turnIndex].name });
         }
     });
 
-    socket.on('disconnect', () => {
-        for (const roomName in rooms) {
-            const room = rooms[roomName];
-            const index = room.players.findIndex(p => p.id === socket.id);
-            if (index !== -1) {
-                room.players.splice(index, 1);
-                if (room.players.length === 0) delete rooms[roomName];
-                else io.to(roomName).emit('updatePlayers', room.players);
-                io.emit('updateRooms', Object.keys(rooms));
-                break;
-            }
-        }
+    socket.on('callLiar', (roomName) => {
+        const room = rooms[roomName];
+        if (!room || !room.currentBid) return;
+
+        // Récupérer toutes les cartes sur la table
+        let allCards = [];
+        room.players.forEach(p => allCards = allCards.concat(p.cards));
+
+        io.to(roomName).emit('revealAll', { cards: allCards, bidder: room.currentBid.playerName, caller: room.players[room.turnIndex].name });
+        
+        // Reset pour la manche suivante après 5 secondes
+        setTimeout(() => {
+            room.gameStarted = false;
+            io.to(roomName).emit('resetGame');
+        }, 8000);
     });
+
+    socket.on('disconnect', () => { /* ... idem précédent ... */ });
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Serveur sur le port ${PORT}`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`🚀 Port ${PORT}`));

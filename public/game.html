@@ -2,53 +2,63 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Poker Menteur - Jeu</title>
+    <title>Poker Menteur</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a252f; color: white; }
-        .header { display: flex; justify-content: space-between; padding: 20px; }
-        #leave-btn { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        #start-btn { background: #f1c40f; color: #333; font-size: 1.2em; padding: 15px 30px; margin-top: 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .card { display: inline-block; background: white; color: black; padding: 15px; border-radius: 8px; font-size: 2em; font-weight: bold; margin: 10px; min-width: 40px; }
+        body { font-family: sans-serif; text-align: center; background: #1a252f; color: white; margin: 0; }
+        .header { display: flex; justify-content: space-between; padding: 15px; background: #16a085; }
+        .card { display: inline-block; background: white; color: black; padding: 10px; border-radius: 5px; font-weight: bold; margin: 5px; border: 2px solid #333; }
         .red { color: #e74c3c; }
-        #bid-area { background: #34495e; padding: 20px; margin: 20px auto; width: 80%; border-radius: 10px; }
-        select, input { padding: 10px; font-size: 1em; border-radius: 5px; }
-        #bid-btn { background: #27ae60; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 1.1em; border-radius: 5px; }
+        #bid-area { background: #34495e; padding: 20px; margin: 10px auto; width: 90%; border-radius: 10px; }
+        button { padding: 12px 20px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; margin: 5px; }
+        #bid-btn { background: #27ae60; color: white; }
+        #liar-btn { background: #e67e22; color: white; }
+        #reveal-zone { background: #c0392b; padding: 15px; display: none; margin: 10px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h2 id="room-title">Table : ...</h2>
-        <button id="leave-btn">Quitter</button>
+        <h3 id="room-title">Table</h3>
+        <button onclick="window.location.href='/'">Quitter</button>
     </div>
 
     <div id="lobby">
-        <h3>Joueurs présents :</h3>
-        <ul id="player-list" style="list-style: none; padding: 0;"></ul>
-        <button id="start-btn" style="display:none;">Lancer la Partie !</button>
+        <ul id="player-list"></ul>
+        <button id="start-btn" style="display:none; background: #f1c40f;">Lancer la Partie</button>
     </div>
 
     <div id="game-area" style="display:none;">
+        <div id="reveal-zone"></div>
+        
         <div id="my-hand">
-            <p>Ta carte :</p>
+            <p>Ta main :</p>
             <div id="cards-display"></div>
         </div>
 
         <div id="bid-area">
-            <h3 id="turn-info" style="color: #f1c40f;">C'est au tour de...</h3>
-            <p id="last-bid">Aucune enchère.</p>
+            <h2 id="turn-info">...</h2>
+            <div id="last-bid" style="font-size: 1.2em; background: #2c3e50; padding: 10px; border-radius: 5px;">Aucune annonce</div>
             <hr>
-            <h4>Faire une annonce :</h4>
-            Il y a au moins 
-            <input type="number" id="bid-count" value="1" min="1" style="width: 50px;">
-            fois la carte 
+            <h4>Faire une surenchère :</h4>
+            Combinaison :
+            <select id="bid-combo">
+                <option value="Carte Haute">Carte Haute</option>
+                <option value="Paire">Paire</option>
+                <option value="Double Paire">Double Paire</option>
+                <option value="Brelan">Brelan</option>
+                <option value="Quinte">Quinte</option>
+                <option value="Full">Full</option>
+                <option value="Carré">Carré</option>
+                <option value="Quinte Flush">Quinte Flush</option>
+            </select>
+            de
             <select id="bid-value">
-                <option value="7">7</option><option value="8">8</option>
-                <option value="9">9</option><option value="10">10</option>
-                <option value="J">Valet</option><option value="Q">Dame</option>
+                <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                <option value="10">10</option><option value="J">Valet</option><option value="Q">Dame</option>
                 <option value="K">Roi</option><option value="A">As</option>
             </select>
             <br><br>
-            <button id="bid-btn">Enchérir</button>
+            <button id="bid-btn">Surenchérir</button>
+            <button id="liar-btn" style="display:none;">MENTEUR !</button>
         </div>
     </div>
 
@@ -57,58 +67,53 @@
         const socket = io();
         const roomName = localStorage.getItem('pokerRoom');
         const playerName = localStorage.getItem('pokerName');
+        const comboOrder = ["Carte Haute", "Paire", "Double Paire", "Brelan", "Quinte", "Full", "Carré", "Quinte Flush"];
 
         document.getElementById('room-title').innerText = "Table : " + roomName;
         socket.emit('joinRoom', { roomName, playerName });
 
-        document.getElementById('leave-btn').addEventListener('click', () => {
-            if(confirm("Quitter la table ?")) window.location.href = '/';
+        socket.on('updatePlayers', (p) => {
+            document.getElementById('player-list').innerHTML = p.map(u => `<li>${u.name}</li>`).join('');
+            document.getElementById('start-btn').style.display = p.length >= 2 ? 'block' : 'none';
         });
 
-        socket.on('updatePlayers', (players) => {
-            const list = document.getElementById('player-list');
-            list.innerHTML = players.map(p => `<li>👤 ${p.name}</li>`).join('');
-            document.getElementById('start-btn').style.display = (players.length >= 2) ? 'inline-block' : 'none';
-        });
-
-        document.getElementById('start-btn').addEventListener('click', () => {
-            socket.emit('startGame', roomName);
-        });
+        document.getElementById('start-btn').onclick = () => socket.emit('startGame', roomName);
 
         socket.on('yourCards', (cards) => {
-            const display = document.getElementById('cards-display');
-            display.innerHTML = cards.map(c => {
-                const isRed = c.includes('♥') || c.includes('♦');
-                return `<div class="card ${isRed ? 'red' : ''}">${c}</div>`;
-            }).join('');
+            document.getElementById('cards-display').innerHTML = cards.map(c => `<div class="card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>`).join('');
         });
 
         socket.on('gameStarted', () => {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game-area').style.display = 'block';
+            document.getElementById('reveal-zone').style.display = 'none';
         });
 
-        // GESTION DES ENCHÈRES
-        document.getElementById('bid-btn').addEventListener('click', () => {
-            const count = document.getElementById('bid-count').value;
-            const value = document.getElementById('bid-value').value;
-            socket.emit('placeBid', {
-                roomName: roomName,
-                bid: { count, value, playerName: playerName }
-            });
-        });
+        document.getElementById('bid-btn').onclick = () => {
+            const combo = document.getElementById('bid-combo').value;
+            const val = document.getElementById('bid-value').value;
+            socket.emit('placeBid', { roomName, bid: { combo, value: val, playerName } });
+        };
+
+        document.getElementById('liar-btn').onclick = () => socket.emit('callLiar', roomName);
 
         socket.on('updateGameState', (data) => {
             if (data.currentBid) {
-                document.getElementById('last-bid').innerHTML = 
-                    `Dernière annonce : <strong>${data.currentBid.count} x ${data.currentBid.value}</strong> par <span style="color:#f1c40f">${data.currentBid.playerName}</span>`;
+                document.getElementById('last-bid').innerHTML = `Annonce : <strong>${data.currentBid.combo} de ${data.currentBid.value}</strong> par ${data.currentBid.playerName}`;
+                document.getElementById('liar-btn').style.display = (data.nextPlayer === playerName) ? 'inline-block' : 'none';
             }
-            document.getElementById('turn-info').innerText = `👉 Tour de : ${data.nextPlayer}`;
-            
-            // On désactive le bouton si ce n'est pas notre tour
-            document.getElementById('bid-btn').disabled = (data.nextPlayer !== playerName);
-            document.getElementById('bid-btn').style.opacity = (data.nextPlayer !== playerName) ? "0.5" : "1";
+            document.getElementById('turn-info').innerText = data.nextPlayer === playerName ? "À TOI DE JOUER !" : `Tour de ${data.nextPlayer}`;
+            document.getElementById('bid-btn').disabled = data.nextPlayer !== playerName;
         });
+
+        socket.on('revealAll', (data) => {
+            const zone = document.getElementById('reveal-zone');
+            zone.style.display = 'block';
+            zone.innerHTML = `<h3>${data.caller} a dit MENTEUR !</h3><p>Toutes les cartes :</p>` + 
+                data.cards.map(c => `<div class="card">${c}</div>`).join('');
+        });
+
+        socket.on('resetGame', () => { location.reload(); });
     </script>
 </body>
 </html>
