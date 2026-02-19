@@ -74,7 +74,7 @@ function startNewRound(roomName) {
 
     room.deck = createDeck();
     room.currentBid = null;
-    room.bidHistory = []; // Reset de l'historique !
+    room.bidHistory = []; 
 
     activePlayers.forEach(p => {
         p.cards = [];
@@ -103,7 +103,6 @@ io.on('connection', (socket) => {
 
     socket.on('createRoom', (roomName) => {
         if (!rooms[roomName]) {
-            // Le créateur est désigné comme l'Hôte (hostId)
             rooms[roomName] = { hostId: socket.id, players: [], gameStarted: false, turnIndex: 0, bidHistory: [] };
             io.emit('updateRooms', Object.keys(rooms));
         }
@@ -113,7 +112,6 @@ io.on('connection', (socket) => {
         let room = rooms[roomName];
         if (room && !room.gameStarted) {
             socket.join(roomName);
-            // Sécurité : si la salle est vide mais existe, le premier devient l'hôte
             if (room.players.length === 0) room.hostId = socket.id;
             
             room.players.push({ id: socket.id, name: playerName, cards: [], penalties: 0, isOut: false });
@@ -123,7 +121,6 @@ io.on('connection', (socket) => {
 
     socket.on('startGame', (roomName) => {
         const room = rooms[roomName];
-        // Seul l'hôte peut lancer, et il faut 2 joueurs min
         if (room && room.hostId === socket.id && room.players.length >= 2) {
             room.gameStarted = true;
             room.turnIndex = 0;
@@ -211,7 +208,6 @@ io.on('connection', (socket) => {
                 if (room.players.length === 0) {
                     delete rooms[roomName];
                 } else {
-                    // Si l'hôte part, on donne le rôle au suivant
                     if (socket.id === room.hostId) room.hostId = room.players[0].id;
                     io.to(roomName).emit('updatePlayers', { players: room.players, hostId: room.hostId });
                 }

@@ -39,6 +39,15 @@
         .start-btn { padding: 15px 30px; background: var(--gold); border: none; font-weight: bold; font-size: 1.2rem; border-radius: 8px; cursor: pointer; display: none; z-index: 20; color: black; box-shadow: 0 0 20px rgba(212,175,55,0.4);}
         .start-btn:hover { filter: brightness(1.2); }
 
+        /* NOUVEAU : AVATARS AUTOUR DE LA TABLE */
+        #table-players { position: absolute; inset: 0; pointer-events: none; }
+        .table-player { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 5; }
+        .table-player .avatar { width: 45px; height: 45px; border-radius: 50%; background: #222; border: 2px solid #555; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; font-weight: bold; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.6); }
+        .table-player.active .avatar { border-color: var(--gold); box-shadow: 0 0 20px var(--gold), inset 0 0 10px var(--gold); }
+        .table-player .name { background: rgba(0,0,0,0.8); padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-top: 5px; font-weight: bold; text-shadow: 1px 1px 2px black;}
+        .table-player .cards-count { font-size: 0.75rem; color: #ccc; background: rgba(0,0,0,0.8); padding: 1px 6px; border-radius: 4px; margin-top: 2px; }
+        .table-player.out { opacity: 0.3; filter: grayscale(100%); }
+
         /* Bottom Controls */
         #bottom-bar { height: 80px; background: #000; border-top: 2px solid var(--gold); display: flex; justify-content: center; align-items: center; gap: 15px; padding: 0 20px; }
         .my-card { background: white; color: black; padding: 10px 15px; font-weight: bold; font-size: 1.2rem; border-radius: 5px; border: 2px solid #555; }
@@ -71,6 +80,8 @@
             <div id="turn-display">Attente de joueurs...</div>
             
             <div id="poker-table">
+                <div id="table-players"></div>
+
                 <button id="start-btn" class="start-btn">LANCER LA PARTIE</button>
                 
                 <div id="overlay">
@@ -124,6 +135,7 @@
         let currentNextPlayer = "";
         let isGameRunning = false;
         let isHost = false;
+        let currentPlayers = []; // Stockage global pour les avatars
 
         document.getElementById('room-title').innerText = "TABLE : " + roomName.toUpperCase();
         socket.emit('joinRoom', { roomName, playerName });
@@ -133,25 +145,59 @@
             document.getElementById('second-val-container').style.display = (combo === "Double Paire" || combo === "Full") ? "inline" : "none";
         }
 
+        // Fonction pour dessiner les avatars autour de la table
+        function renderTablePlayers() {
+            if (!currentPlayers || currentPlayers.length === 0) return;
+            const container = document.getElementById('table-players');
+            container.innerHTML = '';
+            
+            // On réorganise pour placer LE joueur local toujours en bas
+            let renderArray = [...currentPlayers];
+            const myIdx = renderArray.findIndex(p => p.name === playerName);
+            if (myIdx > 0) {
+                const before = renderArray.splice(0, myIdx);
+                renderArray = renderArray.concat(before);
+            }
+
+            renderArray.forEach((p, i) => {
+                // Trigonométrie : on part de PI/2 (en bas) et on tourne
+                const angle = (i / renderArray.length) * Math.PI * 2 + (Math.PI / 2);
+                const x = Math.cos(angle) * 260; // Distance horizontale depuis le centre
+                const y = Math.sin(angle) * 110; // Distance verticale depuis le centre
+                
+                const isActive = p.name === currentNextPlayer;
+                const isOut = p.isOut;
+
+                container.innerHTML += `
+                    <div class="table-player ${isActive ? 'active' : ''} ${isOut ? 'out' : ''}" style="left: calc(50% + ${x}px); top: calc(50% + ${y}px);">
+                        <div class="avatar">${p.name.charAt(0)}</div>
+                        <div class="name">${p.name}</div>
+                        <div class="cards-count">${isOut ? '💀' : p.cards.length + ' pts'}</div>
+                    </div>
+                `;
+            });
+        }
+
         socket.on('updatePlayers', (data) => {
-            const players = data.players;
-            const me = players.find(p => p.name === playerName);
+            currentPlayers = data.players;
+            const me = currentPlayers.find(p => p.name === playerName);
             isHost = (me && me.id === data.hostId);
 
-            document.getElementById('player-list').innerHTML = players.map(p => `
+            document.getElementById('player-list').innerHTML = currentPlayers.map(p => `
                 <div class="player-row ${p.isOut?'out':''} ${p.name===currentNextPlayer?'active':''}">
                     <div>${p.name} ${p.id === data.hostId ? '👑' : ''}</div>
                     <div>${p.isOut ? '💀' : p.cards.length + ' pts'}</div>
                 </div>
             `).join('');
 
-            // LOGIQUE DE L'HOTE SEULEMENT POUR LE BOUTON LANCER
             const startBtn = document.getElementById('start-btn');
-            if (isHost && players.length >= 2 && !isGameRunning) {
+            if (isHost && currentPlayers.length >= 2 && !isGameRunning) {
                 startBtn.style.display = 'block';
             } else {
                 startBtn.style.display = 'none';
             }
+
+            renderTablePlayers(); // Mise à jour visuelle des avatars
         });
 
         document.getElementById('start-btn').onclick = () => {
@@ -186,7 +232,6 @@
                 }).reverse().join('');
             }
 
-            // Activer ou désactiver les contrôles
             const isMyTurn = (data.nextPlayer === playerName);
             const controls = document.getElementById('controls-container');
             
@@ -198,6 +243,9 @@
                 controls.style.opacity = '0.5';
                 controls.style.pointerEvents = 'none';
             }
+
+            // Met à jour l'anneau doré autour de l'avatar du joueur actif
+            renderTablePlayers();
         });
 
         document.getElementById('bid-btn').onclick = () => {
