@@ -19,31 +19,23 @@
         <br>
         <input type="text" id="roomName" placeholder="Nom de la table">
         <button onclick="createRoom()">Créer une table</button>
-        
         <h2>Tables disponibles</h2>
         <ul id="room-list"></ul>
     </div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const playerNameInput = document.getElementById('playerName');
-
         function createRoom() {
             const room = document.getElementById('roomName').value;
-            if (room) {
-                socket.emit('createRoom', room);
-                joinRoom(room);
-            }
+            if (room) { socket.emit('createRoom', room); joinRoom(room); }
         }
-
         function joinRoom(room) {
             const name = playerNameInput.value || "Anonyme";
             localStorage.setItem('pokerRoom', room);
             localStorage.setItem('pokerName', name);
             window.location.href = '/game.html';
         }
-
         socket.on('updateRooms', (rooms) => {
             const list = document.getElementById('room-list');
             list.innerHTML = '';
