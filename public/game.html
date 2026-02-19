@@ -5,24 +5,27 @@
     <title>Poker Menteur</title>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a252f; color: white; margin: 0; }
-        .header { display: flex; justify-content: space-between; padding: 15px; background: #16a085; }
+        .header { display: flex; justify-content: space-between; padding: 15px; background: #16a085; align-items: center; }
+        #my-name-display { font-weight: bold; font-size: 1.2em; color: #f1c40f; }
         .card { display: inline-block; background: white; color: black; padding: 10px; border-radius: 5px; font-weight: bold; margin: 5px; border: 2px solid #333; }
         .red { color: #e74c3c; }
         #bid-area { background: #34495e; padding: 20px; margin: 10px auto; width: 90%; border-radius: 10px; }
         button { padding: 12px 20px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; margin: 5px; }
         #bid-btn { background: #27ae60; color: white; }
         #liar-btn { background: #e67e22; color: white; }
-        #reveal-zone { background: #c0392b; padding: 15px; display: none; margin: 10px; }
+        #reveal-zone { background: #c0392b; padding: 20px; display: none; margin: 10px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .out-text { color: #7f8c8d; text-decoration: line-through; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h3 id="room-title">Table</h3>
+        <div id="my-name-display">Joueur : ...</div>
+        <h3 id="room-title" style="margin: 0;">Table</h3>
         <button onclick="window.location.href='/'">Quitter</button>
     </div>
 
     <div id="lobby">
-        <ul id="player-list"></ul>
+        <ul id="player-list" style="list-style: none; padding: 0;"></ul>
         <button id="start-btn" style="display:none; background: #f1c40f;">Lancer la Partie</button>
     </div>
 
@@ -39,7 +42,6 @@
             <div id="last-bid" style="font-size: 1.2em; background: #2c3e50; padding: 10px; border-radius: 5px;">Aucune annonce</div>
             <hr>
             <h4>Faire une surenchère :</h4>
-            Combinaison :
             <select id="bid-combo">
                 <option value="Carte Haute">Carte Haute</option>
                 <option value="Paire">Paire</option>
@@ -67,14 +69,17 @@
         const socket = io();
         const roomName = localStorage.getItem('pokerRoom');
         const playerName = localStorage.getItem('pokerName');
-        const comboOrder = ["Carte Haute", "Paire", "Double Paire", "Brelan", "Quinte", "Full", "Carré", "Quinte Flush"];
-
+        
+        document.getElementById('my-name-display').innerText = "Joueur : " + playerName;
         document.getElementById('room-title').innerText = "Table : " + roomName;
         socket.emit('joinRoom', { roomName, playerName });
 
         socket.on('updatePlayers', (p) => {
-            document.getElementById('player-list').innerHTML = p.map(u => `<li>${u.name}</li>`).join('');
-            document.getElementById('start-btn').style.display = p.length >= 2 ? 'block' : 'none';
+            document.getElementById('player-list').innerHTML = p.map(u => {
+                let status = u.isOut ? '<span class="out-text">(Éliminé 💀)</span>' : `(${u.cards.length} cartes)`;
+                return `<li>${u.name} ${status}</li>`;
+            }).join('');
+            document.getElementById('start-btn').style.display = p.length >= 2 ? 'inline-block' : 'none';
         });
 
         document.getElementById('start-btn').onclick = () => socket.emit('startGame', roomName);
@@ -86,7 +91,12 @@
         socket.on('gameStarted', () => {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game-area').style.display = 'block';
+        });
+
+        socket.on('roundStarted', () => {
             document.getElementById('reveal-zone').style.display = 'none';
+            document.getElementById('bid-area').style.display = 'block';
+            document.getElementById('last-bid').innerText = "Aucune annonce (Début de manche)";
         });
 
         document.getElementById('bid-btn').onclick = () => {
@@ -101,6 +111,8 @@
             if (data.currentBid) {
                 document.getElementById('last-bid').innerHTML = `Annonce : <strong>${data.currentBid.combo} de ${data.currentBid.value}</strong> par ${data.currentBid.playerName}`;
                 document.getElementById('liar-btn').style.display = (data.nextPlayer === playerName) ? 'inline-block' : 'none';
+            } else {
+                document.getElementById('liar-btn').style.display = 'none';
             }
             document.getElementById('turn-info').innerText = data.nextPlayer === playerName ? "À TOI DE JOUER !" : `Tour de ${data.nextPlayer}`;
             document.getElementById('bid-btn').disabled = data.nextPlayer !== playerName;
@@ -108,12 +120,29 @@
 
         socket.on('revealAll', (data) => {
             const zone = document.getElementById('reveal-zone');
+            document.getElementById('bid-area').style.display = 'none'; // On cache les boutons pour voir le résultat
             zone.style.display = 'block';
-            zone.innerHTML = `<h3>${data.caller} a dit MENTEUR !</h3><p>Toutes les cartes :</p>` + 
-                data.cards.map(c => `<div class="card">${c}</div>`).join('');
+            
+            let resultText = data.isBidTrue ? 
+                `L'annonce était VRAIE ! <strong>${data.caller}</strong> a eu tort de crier au loup.` : 
+                `L'annonce était FAUSSE ! <strong>${data.bidder}</strong> a menti.`;
+
+            let elimText = data.eliminated ? `<h2 style="color: black; background: #f1c40f; padding: 5px;">💀 ${data.loserName} EST ÉLIMINÉ ! 💀</h2>` : `<strong>${data.loserName}</strong> prend une carte de pénalité !`;
+
+            zone.innerHTML = `
+                <h2>${data.caller} a dit MENTEUR !</h2>
+                <p style="font-size: 1.2em;">${resultText}</p>
+                ${elimText}
+                <p>Toutes les cartes sur la table :</p>
+                <div>${data.cards.map(c => `<div class="card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>`).join('')}</div>
+                <p style="font-size: 0.9em; margin-top: 15px;">Prochaine manche dans 8 secondes...</p>
+            `;
         });
 
-        socket.on('resetGame', () => { location.reload(); });
+        socket.on('gameOver', (data) => {
+            alert(`🎉 FIN DE LA PARTIE ! Le grand gagnant est ${data.winner} ! 🎉`);
+            window.location.href = '/';
+        });
     </script>
 </body>
 </html>
