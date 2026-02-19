@@ -7,7 +7,9 @@
         body { font-family: sans-serif; text-align: center; background: #1a252f; color: white; }
         .header { display: flex; justify-content: space-between; padding: 20px; }
         #leave-btn { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        #start-btn { background: #f1c40f; color: #333; font-size: 1.2em; padding: 15px 30px; margin-top: 20px; }
+        #start-btn { background: #f1c40f; color: #333; font-size: 1.2em; padding: 15px 30px; margin-top: 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .card { display: inline-block; background: white; color: black; padding: 15px; border-radius: 8px; font-size: 2em; font-weight: bold; margin: 10px; min-width: 50px; }
+        .red { color: #e74c3c; }
     </style>
 </head>
 <body>
@@ -18,13 +20,18 @@
 
     <div id="lobby">
         <h3>Joueurs présents :</h3>
-        <ul id="player-list"></ul>
+        <ul id="player-list" style="list-style: none; padding: 0;"></ul>
         <button id="start-btn" style="display:none;">Lancer la Partie !</button>
     </div>
 
     <div id="game-area" style="display:none;">
-        <h3>La partie a commencé !</h3>
+        <h2 style="color: #f1c40f;">La partie a commencé !</h2>
+        <div id="my-hand">
+            <p>Ta carte :</p>
+            <div id="cards-display"></div>
         </div>
+        <p style="margin-top: 30px; color: #bdc3c7;">Prochaine étape : Les paris...</p>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -33,31 +40,28 @@
         const playerName = localStorage.getItem('pokerName');
 
         document.getElementById('room-title').innerText = "Table : " + roomName;
-
-        // Rejoindre la salle
         socket.emit('joinRoom', { roomName, playerName });
 
-        // Bouton Quitter
         document.getElementById('leave-btn').addEventListener('click', () => {
-            if(confirm("Quitter la table ?")) {
-                window.location.href = '/';
-            }
+            if(confirm("Quitter la table ?")) window.location.href = '/';
         });
 
         socket.on('updatePlayers', (players) => {
             const list = document.getElementById('player-list');
             list.innerHTML = players.map(p => `<li>👤 ${p.name}</li>`).join('');
-            
-            // Afficher le bouton de lancement si 2+ joueurs
-            if (players.length >= 2) {
-                document.getElementById('start-btn').style.display = 'inline-block';
-            } else {
-                document.getElementById('start-btn').style.display = 'none';
-            }
+            document.getElementById('start-btn').style.display = (players.length >= 2) ? 'inline-block' : 'none';
         });
 
         document.getElementById('start-btn').addEventListener('click', () => {
             socket.emit('startGame', roomName);
+        });
+
+        socket.on('yourCards', (cards) => {
+            const display = document.getElementById('cards-display');
+            display.innerHTML = cards.map(c => {
+                const isRed = c.includes('♥') || c.includes('♦');
+                return `<div class="card ${isRed ? 'red' : ''}">${c}</div>`;
+            }).join('');
         });
 
         socket.on('gameStarted', () => {
