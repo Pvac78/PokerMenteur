@@ -2,201 +2,233 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Poker Menteur - Table</title>
+    <title>Casino Gemini - Table</title>
     <style>
-        :root { --bg: #1a1a1a; --table: #1e5d2f; --panel: #2a2a2a; --gold: #f1c40f; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        :root { --bg: #111; --gold: #d4af37; --table: #074d21; --wood: #2c1e14; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* SCOREBOARD GAUCHE */
-        #side-score { width: 250px; background: var(--panel); border-right: 2px solid #333; padding: 20px; }
-        .player-row { padding: 10px; margin-bottom: 5px; border-radius: 5px; background: #333; display: flex; justify-content: space-between; align-items: center;}
-        .player-row.active { border: 2px solid var(--gold); }
-        .player-row.out { opacity: 0.4; text-decoration: line-through; }
+        /* Top Bar */
+        #top-bar { padding: 10px 20px; border-bottom: 1px solid var(--gold); display: flex; justify-content: space-between; align-items: center; background: #000; z-index: 10;}
+        #top-bar h3 { margin: 0; color: var(--gold); letter-spacing: 2px; }
+        .btn-quit { background: transparent; border: 1px solid #e74c3c; color: #e74c3c; padding: 5px 15px; cursor: pointer; border-radius: 4px; }
+        .btn-quit:hover { background: #e74c3c; color: white; }
 
-        /* TABLE CENTRALE */
-        #main-table { flex-grow: 1; display: flex; flex-direction: column; align-items: center; position: relative; background: radial-gradient(circle, #2e7d32 0%, #1b5e20 100%); }
-        #cards-zone { margin-top: auto; padding-bottom: 50px; }
-        .card { display: inline-block; background: white; color: black; width: 60px; height: 90px; border-radius: 8px; font-weight: bold; font-size: 1.5rem; margin: 5px; line-height: 90px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.5); border: 2px solid #ddd; }
-        .card.red { color: #e74c3c; }
+        /* Main layout */
+        #main-area { display: flex; flex-grow: 1; height: calc(100vh - 120px); }
 
-        /* HISTORIQUE DROITE */
-        #side-history { width: 300px; background: var(--panel); border-left: 2px solid #333; padding: 20px; display: flex; flex-direction: column; }
-        #bid-list { flex-grow: 1; overflow-y: auto; list-style: none; padding: 0; }
-        .bid-entry { padding: 10px; border-bottom: 1px solid #444; font-size: 0.95rem; background: rgba(0,0,0,0.2); margin-bottom: 5px; border-radius: 5px;}
-        .bid-entry span { color: var(--gold); font-weight: bold;}
-
-        /* CONTROLES */
-        #controls { background: rgba(0,0,0,0.8); width: 100%; padding: 20px; display: flex; justify-content: center; align-items: center; gap: 10px; border-top: 2px solid #444; }
-        select, button { padding: 10px; border-radius: 5px; border: none; font-weight: bold; font-size: 1rem; }
-        button { cursor: pointer; transition: 0.2s; }
-        #bid-btn { background: #27ae60; color: white; }
-        #liar-btn { background: #e67e22; color: white; }
+        /* Side panels */
+        .side-panel { width: 220px; background: rgba(0,0,0,0.5); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+        #left-panel { border-right: 1px solid rgba(212,175,55,0.3); }
+        #right-panel { border-left: 1px solid rgba(212,175,55,0.3); }
+        .panel-title { color: var(--gold); border-bottom: 1px solid var(--gold); padding-bottom: 5px; font-size: 0.9rem; text-transform: uppercase; margin-top: 0; }
         
-        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center;}
+        .player-row { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .player-row.active { border: 1px solid var(--gold); background: rgba(212,175,55,0.1); }
+        .player-row.out { opacity: 0.3; text-decoration: line-through; }
+        
+        .bid-entry { font-size: 0.85rem; padding: 8px; border-bottom: 1px solid #333; margin-bottom: 5px; }
+        .bid-entry span { color: var(--gold); font-weight: bold; }
+
+        /* Center Table */
+        #center-area { flex-grow: 1; display: flex; align-items: center; justify-content: center; position: relative; background: radial-gradient(circle, #222 0%, #0a0a0a 100%); flex-direction: column;}
+        
+        #poker-table { width: 600px; height: 300px; background: var(--table); border: 15px solid var(--wood); border-radius: 200px; box-shadow: 0 0 50px rgba(0,0,0,1), inset 0 0 80px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; position: relative; }
+        
+        #turn-display { position: absolute; top: -50px; color: var(--gold); font-size: 1.2rem; font-weight: bold; text-shadow: 0 0 10px black; }
+        
+        .start-btn { padding: 15px 30px; background: var(--gold); border: none; font-weight: bold; font-size: 1.2rem; border-radius: 8px; cursor: pointer; display: none; z-index: 20; color: black; box-shadow: 0 0 20px rgba(212,175,55,0.4);}
+        .start-btn:hover { filter: brightness(1.2); }
+
+        /* Bottom Controls */
+        #bottom-bar { height: 80px; background: #000; border-top: 2px solid var(--gold); display: flex; justify-content: center; align-items: center; gap: 15px; padding: 0 20px; }
+        .my-card { background: white; color: black; padding: 10px 15px; font-weight: bold; font-size: 1.2rem; border-radius: 5px; border: 2px solid #555; }
+        .my-card.red { color: #e74c3c; }
+        
+        select, .action-btn { padding: 8px 12px; font-size: 1rem; border-radius: 4px; border: 1px solid var(--gold); background: #222; color: white; }
+        .action-btn { font-weight: bold; cursor: pointer; transition: 0.2s; border: none; }
+        #bid-btn { background: var(--gold); color: black; }
+        #liar-btn { background: #e74c3c; color: white; }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Overlay Menteur */
+        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; border-radius: 200px; }
     </style>
 </head>
 <body>
 
-    <div id="side-score">
-        <h2>Joueurs</h2>
-        <div id="player-list"></div>
-        <button onclick="window.location.href='/'" style="margin-top: 20px; width: 100%; background: #c0392b; color: white;">Quitter la table</button>
+    <div id="top-bar">
+        <h3 id="room-title">CASINO GEMINI</h3>
+        <button class="btn-quit" onclick="window.location.href='/'">QUITTER LA TABLE</button>
     </div>
 
-    <div id="main-table">
-        <h2 id="room-title" style="margin-top: 20px;">Table : ...</h2>
-        <div id="turn-display" style="color: var(--gold); font-size: 1.5rem; margin-top: 10px;">Attente de joueurs...</div>
+    <div id="main-area">
+        <div id="left-panel" class="side-panel">
+            <h4 class="panel-title">SCORE SESSION</h4>
+            <div id="player-list"></div>
+        </div>
+
+        <div id="center-area">
+            <div id="turn-display">Attente de joueurs...</div>
+            
+            <div id="poker-table">
+                <button id="start-btn" class="start-btn">LANCER LA PARTIE</button>
+                
+                <div id="overlay">
+                    <h1 style="color: #e74c3c; margin: 0; font-size: 2.5rem;">MENTEUR !</h1>
+                    <p id="reveal-msg" style="margin: 10px 0 20px 0; font-size: 1.1rem;"></p>
+                    <div id="reveal-cards" style="display:flex; gap:5px; flex-wrap:wrap; justify-content:center;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="right-panel" class="side-panel">
+            <h4 class="panel-title">HISTORIQUE</h4>
+            <div id="bid-list"></div>
+        </div>
+    </div>
+
+    <div id="bottom-bar">
+        <div id="my-cards-container" style="display:flex; gap:5px; margin-right:20px;"></div>
         
-        <div id="overlay">
-            <h1 id="reveal-title" style="font-size: 3rem; color: #e74c3c; margin-bottom: 10px;">MENTEUR !</h1>
-            <p id="reveal-msg" style="font-size: 1.2rem; margin-bottom: 20px;"></p>
-            <div id="reveal-cards" style="margin-bottom: 20px;"></div>
-            <p style="color: #7f8c8d;">Prochaine manche dans quelques secondes...</p>
-        </div>
-
-        <div id="cards-zone">
-            <div id="my-cards"></div>
-        </div>
-
-        <div id="controls" style="display:none;">
+        <div id="controls-container" style="display:flex; gap:10px; align-items:center; opacity:0.5; pointer-events:none;">
             <select id="bid-combo" onchange="toggleSecondValue()">
                 <option value="Carte Haute">Carte Haute</option><option value="Paire">Paire</option>
                 <option value="Double Paire">Double Paire</option><option value="Brelan">Brelan</option>
                 <option value="Full">Full</option><option value="Carré">Carré</option>
                 <option value="Quinte">Quinte</option><option value="Quinte Flush">Quinte Flush</option>
             </select>
-            <span style="color: white;">de</span>
             <select id="bid-value">
                 <option value="7">7</option><option value="8">8</option><option value="9">9</option>
                 <option value="10">10</option><option value="J">J</option><option value="Q">Q</option>
                 <option value="K">K</option><option value="A">A</option>
             </select>
             
-            <span id="second-val-container" style="display:none; color: white;">
-                et de 
-                <select id="bid-value-2">
+            <span id="second-val-container" style="display:none; color: white; font-size:0.9rem;">
+                & <select id="bid-value-2">
                     <option value="7">7</option><option value="8">8</option><option value="9">9</option>
                     <option value="10">10</option><option value="J">J</option><option value="Q">Q</option>
                     <option value="K">K</option><option value="A">A</option>
                 </select>
             </span>
 
-            <button id="bid-btn">ENCHÉRIR</button>
-            <button id="liar-btn" style="margin-left: 20px;">MENTEUR !</button>
+            <button id="bid-btn" class="action-btn">ANNONCER</button>
+            <button id="liar-btn" class="action-btn">MENTEUR !</button>
         </div>
-        <button id="start-btn" style="position:absolute; top:50%; padding:20px 40px; background:var(--gold); font-size: 1.5rem; font-weight: bold; border-radius: 10px; display:none;">DÉMARRER LA PARTIE</button>
     </div>
 
-    <div id="side-history">
-        <h2>Historique</h2>
-        <ul id="bid-list"></ul>
-    </div>
-
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const roomName = localStorage.getItem('pokerRoom');
         const playerName = localStorage.getItem('pokerName');
         let currentNextPlayer = "";
+        let isGameRunning = false;
+        let isHost = false;
 
+        document.getElementById('room-title').innerText = "TABLE : " + roomName.toUpperCase();
         socket.emit('joinRoom', { roomName, playerName });
 
-        // Affiche ou cache le deuxième menu déroulant selon la combinaison
         function toggleSecondValue() {
             const combo = document.getElementById('bid-combo').value;
-            const container = document.getElementById('second-val-container');
-            if (combo === "Double Paire" || combo === "Full") {
-                container.style.display = "inline";
-            } else {
-                container.style.display = "none";
-            }
+            document.getElementById('second-val-container').style.display = (combo === "Double Paire" || combo === "Full") ? "inline" : "none";
         }
 
-        socket.on('updatePlayers', (players) => {
-            document.getElementById('room-title').innerText = "Table : " + roomName;
-            const list = document.getElementById('player-list');
-            list.innerHTML = players.map(p => `
+        socket.on('updatePlayers', (data) => {
+            const players = data.players;
+            const me = players.find(p => p.name === playerName);
+            isHost = (me && me.id === data.hostId);
+
+            document.getElementById('player-list').innerHTML = players.map(p => `
                 <div class="player-row ${p.isOut?'out':''} ${p.name===currentNextPlayer?'active':''}">
-                    <span>${p.name} ${p.name === playerName ? '(Toi)' : ''}</span>
-                    <span>${p.isOut ? '💀' : '🂠'.repeat(p.cards.length || 1)}</span>
+                    <div>${p.name} ${p.id === data.hostId ? '👑' : ''}</div>
+                    <div>${p.isOut ? '💀' : p.cards.length + ' pts'}</div>
                 </div>
             `).join('');
-            if(players.length >= 2) document.getElementById('start-btn').style.display = 'block';
+
+            // LOGIQUE DE L'HOTE SEULEMENT POUR LE BOUTON LANCER
+            const startBtn = document.getElementById('start-btn');
+            if (isHost && players.length >= 2 && !isGameRunning) {
+                startBtn.style.display = 'block';
+            } else {
+                startBtn.style.display = 'none';
+            }
         });
 
         document.getElementById('start-btn').onclick = () => {
             socket.emit('startGame', roomName);
-            document.getElementById('start-btn').style.display = 'none';
         };
 
         socket.on('yourCards', (cards) => {
-            document.getElementById('my-cards').innerHTML = cards.map(c => `
-                <div class="card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>
+            document.getElementById('my-cards-container').innerHTML = cards.map(c => `
+                <div class="my-card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>
             `).join('');
+        });
+
+        socket.on('gameStarted', () => {
+            isGameRunning = true;
+            document.getElementById('start-btn').style.display = 'none';
         });
 
         socket.on('roundStarted', () => {
             document.getElementById('overlay').style.display = 'none';
-            document.getElementById('controls').style.display = 'flex';
-            document.getElementById('bid-list').innerHTML = '';
+            document.getElementById('bid-list').innerHTML = ''; 
         });
 
         socket.on('updateGameState', (data) => {
             currentNextPlayer = data.nextPlayer;
-            document.getElementById('turn-display').innerText = `👉 Au tour de : ${data.nextPlayer}`;
+            document.getElementById('turn-display').innerText = data.nextPlayer === playerName ? "C'EST À VOUS DE JOUER" : `TOUR DE : ${data.nextPlayer}`;
             
             if(data.bidHistory) {
-                const list = document.getElementById('bid-list');
-                list.innerHTML = data.bidHistory.map(b => {
-                    // Formatage du texte selon s'il y a 1 ou 2 valeurs
+                document.getElementById('bid-list').innerHTML = data.bidHistory.map(b => {
                     let text = `${b.combo} de ${b.value}`;
-                    if (b.value2) text += ` et de ${b.value2}`;
-                    return `<li class="bid-entry"><span>${b.playerName}</span><br>${text}</li>`;
+                    if (b.value2) text += ` et ${b.value2}`;
+                    return `<div class="bid-entry"><span>${b.playerName}</span><br>${text}</div>`;
                 }).reverse().join('');
             }
 
+            // Activer ou désactiver les contrôles
             const isMyTurn = (data.nextPlayer === playerName);
-            document.getElementById('bid-btn').disabled = !isMyTurn;
-            document.getElementById('bid-btn').style.opacity = isMyTurn ? '1' : '0.5';
-            document.getElementById('liar-btn').disabled = !isMyTurn || data.bidHistory.length === 0;
-            document.getElementById('liar-btn').style.opacity = (!isMyTurn || data.bidHistory.length === 0) ? '0.5' : '1';
+            const controls = document.getElementById('controls-container');
+            
+            if (isMyTurn) {
+                controls.style.opacity = '1';
+                controls.style.pointerEvents = 'auto';
+                document.getElementById('liar-btn').disabled = (data.bidHistory.length === 0);
+            } else {
+                controls.style.opacity = '0.5';
+                controls.style.pointerEvents = 'none';
+            }
         });
 
         document.getElementById('bid-btn').onclick = () => {
             const combo = document.getElementById('bid-combo').value;
             const val1 = document.getElementById('bid-value').value;
-            let val2 = null;
+            let val2 = (combo === "Double Paire" || combo === "Full") ? document.getElementById('bid-value-2').value : null;
 
-            if (combo === "Double Paire" || combo === "Full") {
-                val2 = document.getElementById('bid-value-2').value;
-                if (val1 === val2) {
-                    alert("Pour une Double Paire ou un Full, les deux cartes doivent être différentes !");
-                    return;
-                }
+            if (val2 && val1 === val2) {
+                alert("Les deux valeurs doivent être différentes !");
+                return;
             }
 
-            socket.emit('placeBid', { roomName, bid: { 
-                combo: combo, 
-                value: val1,
-                value2: val2,
-                playerName: playerName 
-            }});
+            socket.emit('placeBid', { roomName, bid: { combo, value: val1, value2: val2, playerName } });
         };
 
         document.getElementById('liar-btn').onclick = () => socket.emit('callLiar', roomName);
 
         socket.on('revealAll', (data) => {
+            document.getElementById('controls-container').style.opacity = '0.5';
+            document.getElementById('controls-container').style.pointerEvents = 'none';
+            
             const over = document.getElementById('overlay');
             over.style.display = 'flex';
             
-            let elimText = data.eliminated ? `<br><strong style="color: #f1c40f;">💀 ÉLIMINÉ ! 💀</strong>` : ` (prend 1 carte)`;
-            
             document.getElementById('reveal-cards').innerHTML = data.cards.map(c => `
-                <div class="card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>
+                <div class="my-card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>
             `).join('');
             
             document.getElementById('reveal-msg').innerHTML = `
-                L'annonce était <strong>${data.isBidTrue ? 'VRAIE' : 'FAUSSE'}</strong>.<br>
-                <span style="font-size: 1.5rem;"><strong>${data.loserName}</strong> perd ce round${elimText}</span>
+                L'annonce était ${data.isBidTrue ? 'VRAIE' : 'FAUSSE'}.<br>
+                <strong>${data.loserName}</strong> prend 1 carte ${data.eliminated ? '(ÉLIMINÉ)' : ''}.
             `;
         });
         

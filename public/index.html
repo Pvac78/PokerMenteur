@@ -2,48 +2,50 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Poker Menteur - Accueil</title>
+    <title>Casino Gemini - Accueil</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #2c3e50; color: white; }
-        .container { margin-top: 50px; }
-        input, button { padding: 10px; margin: 5px; border-radius: 5px; border: none; }
-        button { cursor: pointer; background: #27ae60; color: white; font-weight: bold; }
-        #room-list { list-style: none; padding: 0; }
-        .room-item { background: #34495e; margin: 10px auto; padding: 10px; width: 300px; border-radius: 5px; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #222; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;}
+        .container { background: #111; padding: 40px; border-radius: 10px; border: 2px solid #d4af37; box-shadow: 0 0 30px rgba(0,0,0,0.8); width: 350px;}
+        h1 { color: #d4af37; margin-top: 0; letter-spacing: 2px;}
+        input { width: 90%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #555; color: white; border-radius: 5px; }
+        input:focus { outline: none; border-color: #d4af37; }
+        button { background: #d4af37; color: black; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; margin-top: 10px; font-size: 1rem;}
+        button:hover { filter: brightness(1.2); }
+        #room-list { list-style: none; padding: 0; text-align: left; max-height: 150px; overflow-y: auto;}
+        .room-item { background: #000; margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;}
+        .join-btn { background: #333; color: white; padding: 5px 10px; width: auto; margin: 0; border: 1px solid #d4af37;}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🃏 Poker Menteur</h1>
-        <input type="text" id="playerName" placeholder="Ton pseudo">
-        <br>
-        <input type="text" id="roomName" placeholder="Nom de la table">
-        <button onclick="createRoom()">Créer une table</button>
-        <h2>Tables disponibles</h2>
+        <h1>CASINO GEMINI</h1>
+        <input type="text" id="playerName" placeholder="Votre Pseudo">
+        <hr style="border-color:#333; margin:20px 0;">
+        <input type="text" id="roomName" placeholder="Nom de la table à créer">
+        <button onclick="createRoom()">CRÉER UNE TABLE</button>
+        
+        <h3 style="color:#aaa; font-size: 0.9rem; text-align: left; margin-top: 20px;">TABLES ACTIVES</h3>
         <ul id="room-list"></ul>
     </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const playerNameInput = document.getElementById('playerName');
         function createRoom() {
             const room = document.getElementById('roomName').value;
             if (room) { socket.emit('createRoom', room); joinRoom(room); }
         }
         function joinRoom(room) {
-            const name = playerNameInput.value || "Anonyme";
+            const name = document.getElementById('playerName').value || "Joueur";
             localStorage.setItem('pokerRoom', room);
             localStorage.setItem('pokerName', name);
             window.location.href = '/game.html';
         }
         socket.on('updateRooms', (rooms) => {
             const list = document.getElementById('room-list');
-            list.innerHTML = '';
+            list.innerHTML = rooms.length === 0 ? '<li style="color:#555; font-size:0.8rem;">Aucune table...</li>' : '';
             rooms.forEach(room => {
-                const li = document.createElement('li');
-                li.className = 'room-item';
-                li.innerHTML = `${room} <button onclick="joinRoom('${room}')">Rejoindre</button>`;
-                list.appendChild(li);
+                list.innerHTML += `<li class="room-item"><span>${room}</span> <button class="join-btn" onclick="joinRoom('${room}')">REJOINDRE</button></li>`;
             });
         });
     </script>
