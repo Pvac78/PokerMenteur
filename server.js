@@ -11,7 +11,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 let rooms = {}; 
 
-const HAND_HIERARCHY = ["Carte Haute", "Paire", "Double Paire", "Brelan", "Quinte", "Full", "Carré", "Quinte Flush"];
+// NOUVELLE HIÉRARCHIE (Brelan > Quinte)
+const HAND_HIERARCHY = [
+    "Carte Haute", "Paire", "Double Paire", "Quinte", 
+    "Brelan", "Full", "Carré", "Quinte Flush", "Quinte Flush Royale"
+];
 const VAL_MAP = {'7':7, '8':8, '9':9, '10':10, 'J':11, 'Q':12, 'K':13, 'A':14};
 
 function createDeck() {
@@ -43,18 +47,26 @@ function checkBid(allCards, combo, targetValue, targetValue2) {
         case "Double Paire": 
             if (!tV2) return false;
             return (counts[tV1] >= 2 && counts[tV2] >= 2);
+        case "Quinte":
+            for(let i=0; i<5; i++) if(!counts[tV1 - i]) return false;
+            return true;
         case "Brelan": return counts[tV1] >= 3;
         case "Full": 
             if (!tV2) return false;
             return (counts[tV1] >= 3 && counts[tV2] >= 2);
         case "Carré": return counts[tV1] >= 4;
-        case "Quinte":
-            for(let i=0; i<5; i++) if(!counts[tV1 - i]) return false;
-            return true;
         case "Quinte Flush":
             for (let s in suitVals) {
                 let hasAll = true;
                 for(let i=0; i<5; i++) if(!suitVals[s].includes(tV1 - i)) hasAll = false;
+                if (hasAll) return true;
+            }
+            return false;
+        case "Quinte Flush Royale":
+            // Doit être 10, J, Q, K, A (14) de la même couleur
+            for (let s in suitVals) {
+                let hasAll = true;
+                for(let i=0; i<5; i++) if(!suitVals[s].includes(14 - i)) hasAll = false;
                 if (hasAll) return true;
             }
             return false;

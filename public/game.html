@@ -5,7 +5,7 @@
     <title>Casino Gemini - Table</title>
     <style>
         :root { --bg: #111; --gold: #d4af37; --table: #074d21; --wood: #2c1e14; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
         
         /* Top Bar */
         #top-bar { padding: 10px 20px; border-bottom: 1px solid var(--gold); display: flex; justify-content: space-between; align-items: center; background: #000; z-index: 10;}
@@ -39,7 +39,7 @@
         .start-btn { padding: 15px 30px; background: var(--gold); border: none; font-weight: bold; font-size: 1.2rem; border-radius: 8px; cursor: pointer; display: none; z-index: 20; color: black; box-shadow: 0 0 20px rgba(212,175,55,0.4);}
         .start-btn:hover { filter: brightness(1.2); }
 
-        /* NOUVEAU : AVATARS AUTOUR DE LA TABLE */
+        /* Avatars */
         #table-players { position: absolute; inset: 0; pointer-events: none; }
         .table-player { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 5; }
         .table-player .avatar { width: 45px; height: 45px; border-radius: 50%; background: #222; border: 2px solid #555; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; font-weight: bold; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.6); }
@@ -50,13 +50,16 @@
 
         /* Bottom Controls */
         #bottom-bar { height: 80px; background: #000; border-top: 2px solid var(--gold); display: flex; justify-content: center; align-items: center; gap: 15px; padding: 0 20px; }
-        .my-card { background: white; color: black; padding: 10px 15px; font-weight: bold; font-size: 1.2rem; border-radius: 5px; border: 2px solid #555; }
+        .my-card { display: flex; align-items: center; justify-content: center; width: 40px; height: 55px; background: white; color: black; font-weight: bold; font-size: 1.2rem; border-radius: 5px; border: 2px solid #555; transition: transform 0.2s;}
         .my-card.red { color: #e74c3c; }
+        .my-card.hidden { background: repeating-linear-gradient(45deg, #111, #111 5px, #222 5px, #222 10px); color: transparent !important; }
+        .my-card.hidden::after { content: '🂠'; color: var(--gold); font-size: 1.5rem; }
         
         select, .action-btn { padding: 8px 12px; font-size: 1rem; border-radius: 4px; border: 1px solid var(--gold); background: #222; color: white; }
         .action-btn { font-weight: bold; cursor: pointer; transition: 0.2s; border: none; }
         #bid-btn { background: var(--gold); color: black; }
         #liar-btn { background: #e74c3c; color: white; }
+        #peek-btn { background: #3498db; color: white; border: 1px solid #2980b9; user-select: none; }
         .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         /* Overlay Menteur */
@@ -101,12 +104,19 @@
     <div id="bottom-bar">
         <div id="my-cards-container" style="display:flex; gap:5px; margin-right:20px;"></div>
         
+        <button id="peek-btn" class="action-btn" style="margin-right: 15px; display: none;">👀 VOIR</button>
+
         <div id="controls-container" style="display:flex; gap:10px; align-items:center; opacity:0.5; pointer-events:none;">
             <select id="bid-combo" onchange="toggleSecondValue()">
-                <option value="Carte Haute">Carte Haute</option><option value="Paire">Paire</option>
-                <option value="Double Paire">Double Paire</option><option value="Brelan">Brelan</option>
-                <option value="Full">Full</option><option value="Carré">Carré</option>
-                <option value="Quinte">Quinte</option><option value="Quinte Flush">Quinte Flush</option>
+                <option value="Carte Haute">Carte Haute</option>
+                <option value="Paire">Paire</option>
+                <option value="Double Paire">Double Paire</option>
+                <option value="Quinte">Quinte</option>
+                <option value="Brelan">Brelan</option>
+                <option value="Full">Full</option>
+                <option value="Carré">Carré</option>
+                <option value="Quinte Flush">Quinte Flush</option>
+                <option value="Quinte Flush Royale">Quinte Flush Royale</option>
             </select>
             <select id="bid-value">
                 <option value="7">7</option><option value="8">8</option><option value="9">9</option>
@@ -135,7 +145,8 @@
         let currentNextPlayer = "";
         let isGameRunning = false;
         let isHost = false;
-        let currentPlayers = []; // Stockage global pour les avatars
+        let currentPlayers = []; 
+        let myCurrentCards = []; // Stockage des cartes en local
 
         document.getElementById('room-title').innerText = "TABLE : " + roomName.toUpperCase();
         socket.emit('joinRoom', { roomName, playerName });
@@ -143,15 +154,17 @@
         function toggleSecondValue() {
             const combo = document.getElementById('bid-combo').value;
             document.getElementById('second-val-container').style.display = (combo === "Double Paire" || combo === "Full") ? "inline" : "none";
+            // Pour Quinte Flush Royale, le As est implicite, on force A par défaut.
+            if (combo === "Quinte Flush Royale") {
+                document.getElementById('bid-value').value = "A";
+            }
         }
 
-        // Fonction pour dessiner les avatars autour de la table
         function renderTablePlayers() {
             if (!currentPlayers || currentPlayers.length === 0) return;
             const container = document.getElementById('table-players');
             container.innerHTML = '';
             
-            // On réorganise pour placer LE joueur local toujours en bas
             let renderArray = [...currentPlayers];
             const myIdx = renderArray.findIndex(p => p.name === playerName);
             if (myIdx > 0) {
@@ -160,10 +173,9 @@
             }
 
             renderArray.forEach((p, i) => {
-                // Trigonométrie : on part de PI/2 (en bas) et on tourne
                 const angle = (i / renderArray.length) * Math.PI * 2 + (Math.PI / 2);
-                const x = Math.cos(angle) * 260; // Distance horizontale depuis le centre
-                const y = Math.sin(angle) * 110; // Distance verticale depuis le centre
+                const x = Math.cos(angle) * 260; 
+                const y = Math.sin(angle) * 110; 
                 
                 const isActive = p.name === currentNextPlayer;
                 const isOut = p.isOut;
@@ -172,11 +184,34 @@
                     <div class="table-player ${isActive ? 'active' : ''} ${isOut ? 'out' : ''}" style="left: calc(50% + ${x}px); top: calc(50% + ${y}px);">
                         <div class="avatar">${p.name.charAt(0)}</div>
                         <div class="name">${p.name}</div>
-                        <div class="cards-count">${isOut ? '💀' : p.cards.length + ' pts'}</div>
+                        <div class="cards-count">${isOut ? '💀' : p.cards.length + ' cartes'}</div>
                     </div>
                 `;
             });
         }
+
+        // --- GESTION DES CARTES CACHÉES (PEEK) ---
+        function renderMyCards(reveal) {
+            document.getElementById('my-cards-container').innerHTML = myCurrentCards.map(c => {
+                if(reveal) {
+                    const isRed = c.includes('♥')||c.includes('♦');
+                    return `<div class="my-card ${isRed?'red':''}">${c}</div>`;
+                } else {
+                    return `<div class="my-card hidden"></div>`;
+                }
+            }).join('');
+        }
+
+        const peekBtn = document.getElementById('peek-btn');
+        const showCards = () => renderMyCards(true);
+        const hideCards = () => renderMyCards(false);
+
+        peekBtn.addEventListener('mousedown', showCards);
+        peekBtn.addEventListener('mouseup', hideCards);
+        peekBtn.addEventListener('mouseleave', hideCards);
+        peekBtn.addEventListener('touchstart', (e) => { e.preventDefault(); showCards(); });
+        peekBtn.addEventListener('touchend', (e) => { e.preventDefault(); hideCards(); });
+        // ------------------------------------------
 
         socket.on('updatePlayers', (data) => {
             currentPlayers = data.players;
@@ -186,7 +221,7 @@
             document.getElementById('player-list').innerHTML = currentPlayers.map(p => `
                 <div class="player-row ${p.isOut?'out':''} ${p.name===currentNextPlayer?'active':''}">
                     <div>${p.name} ${p.id === data.hostId ? '👑' : ''}</div>
-                    <div>${p.isOut ? '💀' : p.cards.length + ' pts'}</div>
+                    <div>${p.isOut ? '💀' : p.cards.length + ' cartes'}</div>
                 </div>
             `).join('');
 
@@ -197,7 +232,7 @@
                 startBtn.style.display = 'none';
             }
 
-            renderTablePlayers(); // Mise à jour visuelle des avatars
+            renderTablePlayers();
         });
 
         document.getElementById('start-btn').onclick = () => {
@@ -205,9 +240,9 @@
         };
 
         socket.on('yourCards', (cards) => {
-            document.getElementById('my-cards-container').innerHTML = cards.map(c => `
-                <div class="my-card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>
-            `).join('');
+            myCurrentCards = cards;
+            renderMyCards(false); // Affiche les dos de cartes au départ
+            peekBtn.style.display = 'block'; // Fait apparaître le bouton "Voir"
         });
 
         socket.on('gameStarted', () => {
@@ -227,7 +262,8 @@
             if(data.bidHistory) {
                 document.getElementById('bid-list').innerHTML = data.bidHistory.map(b => {
                     let text = `${b.combo} de ${b.value}`;
-                    if (b.value2) text += ` et ${b.value2}`;
+                    if (b.combo === "Quinte Flush Royale") text = `Quinte Flush Royale`;
+                    else if (b.value2) text += ` et ${b.value2}`;
                     return `<div class="bid-entry"><span>${b.playerName}</span><br>${text}</div>`;
                 }).reverse().join('');
             }
@@ -244,7 +280,6 @@
                 controls.style.pointerEvents = 'none';
             }
 
-            // Met à jour l'anneau doré autour de l'avatar du joueur actif
             renderTablePlayers();
         });
 
@@ -270,6 +305,7 @@
             const over = document.getElementById('overlay');
             over.style.display = 'flex';
             
+            // On révèle les vraies cartes au centre
             document.getElementById('reveal-cards').innerHTML = data.cards.map(c => `
                 <div class="my-card ${c.includes('♥')||c.includes('♦')?'red':''}">${c}</div>
             `).join('');
